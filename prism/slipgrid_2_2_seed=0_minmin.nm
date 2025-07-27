@@ -1,0 +1,27 @@
+mdp
+
+module grid
+    x : [0..1];
+    y : [0..1];
+    [down] x=0 & y=0 -> [0.716, 0.716]: (x'=0) & (y'=1) + [0.28400000000000003, 0.28400000000000003]: (x'=0) & (y'=0);
+    [down_be] x=0 & y=0 -> [0.716, 0.891]: (x'=0) & (y'=1) + [0.109, 0.28400000000000003]: (x'=0) & (y'=0);
+    [right] x=0 & y=1 -> [0.762, 0.762]: (x'=1) & (y'=1) + [0.238, 0.238]: (x'=0) & (y'=1);
+    [right_be] x=0 & y=1 -> [0.762, 0.888]: (x'=1) & (y'=1) + [0.112, 0.238]: (x'=0) & (y'=1);
+    [down] x=1 & y=0 -> [0.752, 0.752]: (x'=1) & (y'=1) + [0.248, 0.248]: (x'=1) & (y'=0);
+    [down_be] x=1 & y=0 -> [0.752, 0.923]: (x'=1) & (y'=1) + [0.07700000000000001, 0.248]: (x'=1) & (y'=0);
+    [pass] x=1 & y=1 -> [1.0, 1.0]: (x'=1) & (y'=1);
+endmodule
+
+// initial states
+init true endinit
+
+// reward structure (number of steps to reach the target)
+rewards
+    [right] true : 1;
+    [right_be] true : 1;
+    [down] true : 1;
+    [down_be] true : 1;
+    [pass] true : 0;
+endrewards
+
+label "goal" = x=1 & y=1;
