@@ -1,75 +1,83 @@
 import numpy as np
 import cvxpy as cp
+import tqdm
 
-Pa11 = np.array([0, 1, 0])
-Pa12 = np.array([0, 0, 1])
+def RVI(rmdp, reward, nr_states, s_init=0, gamma=0.9, iters=100, policy_direction='min', adversary_direction='max', terminate_eps=1e-5):
+    print('\nStart robust value iteration...')
 
-Pa21 = np.array([0, 0, 1])
-Pa22 = np.array([0, 1, 0])
+    # Initialize value function
+    V = np.zeros((iters+1, nr_states))
+    pi = np.full((iters+1, nr_states), 'none', dtype=object)
+    Q = {}
+    Qa = {}
 
-N = 10000
-V = np.zeros((N,3))
-V0 = np.array([0,1,0])
-V[0] = V0
+    # Initialize point in each uncertainty set (chosen to be the center)
+    P = np.zeros((iters+1, nr_states))
+    P[0] = 0.5
+    
+    # Initialize state-action values
+    for s,v in rmdp.items():
+        Q[s] = np.zeros(len(v))
+        Qa[s] = list(v.keys())
 
-pi = np.zeros(N+1)
-pi0 = np.array([0.2])
-pi[0] = pi0
+    # For each iteration
+    z = 0
+    tr = tqdm.trange(iters, desc='Current value: 0', leave=True)
+    for i in tr:
+        tr.set_description(f"Current value in initial state: {V[i,s_init]:.2f}")
+        tr.refresh() # to show immediately the update
+        z += 1 # Increment iteration counter
 
-xi = np.zeros(N)
+        # Optimize for policy under current choice in the uncertainty set
+        for s,v in rmdp.items():
 
-for i in range(N):
-    cp_xi = cp.Variable()
-    constraints = [
-        cp_xi >= 0,
-        cp_xi <= 1,
-    ]
-    objective = (pi[i] * (cp_xi * Pa11 + (1-cp_xi) * Pa12) + (1-pi[i]) * (cp_xi * Pa21 + (1-cp_xi) * Pa22)) @ V[0]
-    prob = cp.Problem(cp.Minimize(objective), constraints)
-    prob.solve()
+            for j,(a,w) in enumerate(v.items()):
+                Q[s][j] = reward[s][a] + gamma * np.sum([(P[i,s] * p[0] + (1-P[i,s]) * p[1]) * V[i,ss] for ss,p in w.items()])
 
-    # print('- Opt value (inner)', prob.value)
-    f = 1
-    xi[i] = f * cp_xi.value + (1 - f) * xi[i]
-    print(i,'>>> New value for xi is', xi[i])
+            if policy_direction == 'min':
+                optimal_action_nr = np.argmin(Q[s])
+                V[i+1,s] = np.min(Q[s])
+            else:
+                optimal_action_nr = np.argmax(Q[s])
+                V[i+1,s] = np.max(Q[s])
 
-    del prob, constraints, objective
+            pi[i+1,s] = Qa[s][optimal_action_nr]
 
-    cp_pi = cp.Variable()
-    constraints = [
-        cp_pi >= 0,
-        cp_pi <= 1,
-    ]
-    objective = (cp_pi * (xi[i] * Pa11 + (1-xi[i]) * Pa12) + (1-cp_pi) * (xi[i] * Pa21 + (1-xi[i]) * Pa22)) @ V[0]
-    prob = cp.Problem(cp.Maximize(objective), constraints)
-    prob.solve()
+        # Update point in the uncertainty set
+        for s,v in rmdp.items():
+            cp_P = cp.Variable()
+            constraints = [
+                cp_P >= 0,
+                cp_P <= 1,
+            ]
 
-    # print('- Opt value (outer)', prob.value)
-    f = 0.1/np.log(i+2)
-    pi[i+1] = f * cp_pi.value + (1-f) * pi[i]
-    print(i,'<<< New value for pi is', pi[i+1])
+            w = rmdp[s][pi[i+1,s]]
+            objective = reward[s][pi[i+1,s]] + gamma * np.sum([(cp_P * p[0] + (1-cp_P) * p[1]) * V[i,ss] for ss,p in w.items()])
 
-# # Generate a random non-trivial linear program.
-# m = 15
-# n = 10
-# np.random.seed(1)
-# s0 = np.random.randn(m)
-# lamb0 = np.maximum(-s0, 0)
-# s0 = np.maximum(s0, 0)
-# x0 = np.random.randn(n)
-# A = np.random.randn(m, n)
-# b = A @ x0 + s0
-# c = -A.T @ lamb0
-#
-# # Define and solve the CVXPY problem.
-# x = cp.Variable(n)
-# prob = cp.Problem(cp.Minimize(c.T @ x),
-#                   [A @ x <= b])
-# prob.solve()
-#
-# # Print result.
-# print("\nThe optimal value is", prob.value)
-# print("A solution x is")
-# print(x.value)
-# print("A dual solution is")
-# print(prob.constraints[0].dual_value)
+            if adversary_direction == 'min':
+                prob = cp.Problem(cp.Minimize(objective), constraints)
+            else:
+                prob = cp.Problem(cp.Maximize(objective), constraints)
+
+            prob.solve()
+
+            P[i+1,s] = np.round(cp_P.value, 3)
+
+        if np.all(np.abs(V[i+1] - V[i]) <= terminate_eps):
+            break
+
+    Vstar = V[z,:]
+    policy = pi[z,:]
+    worstP = P[z,:]
+
+    # Retrieve set of all optimal actions in each state
+    optimal_actions = {}
+    for s,v in rmdp.items():
+        optimal_actions[s] = []
+        for a,w in v.items():
+            Q = reward[s][a] + gamma * np.sum([(worstP[s] * p[0] + (1-worstP[s]) * p[1]) * Vstar[ss] for ss,p in w.items()])
+            if np.abs(Q - Vstar[s]) < 1e-4:
+                optimal_actions[s] += [a]
+            
+    # Return values from the last one performed before breaking
+    return Vstar, policy, worstP, optimal_actions
