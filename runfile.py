@@ -6,7 +6,7 @@ import pandas as pd
 import time
 from utils import xy_to_index, index_to_xy
 from slipgrid import SlipGrid
-from RVI import RVI
+from RVI import RVI, compute_derivative
 
 def plot_grid_layout(X, Y, obstacles=None):
     """Plot the grid layout with obstacles."""
@@ -115,14 +115,15 @@ def run_prism_instance(grid):
     return prism_fraction_minmax, prism_fraction_minmin, prism_time, prism_time_double
 
 verbose = False
-Xbase = 10     # X cells of the grid
-Ybase = 10     # Y cells of the grid
-Bbase = 10     # Number of obstacles
+Xbase = 3     # X cells of the grid
+Ybase = 3     # Y cells of the grid
+Bbase = 0     # Number of obstacles
 sizes = [1]
-Ps = [0.0, 0.5, 1.0] #[0.0, 0.5, 1.0]    # Probability to define the best-effort action first
-seeds = np.arange(2)    # Random seed for reproducibility
+Ps = [0.5] #[0.0, 0.5, 1.0]    # Probability to define the best-effort action first
+seeds = np.arange(1)    # Random seed for reproducibility
 results = {}
 
+'''
 # Run the instances for each probability P
 for size in sizes:
     # Scale the grid size and number of obstacles
@@ -158,6 +159,14 @@ print(DF)
 DF.to_csv('results/slipgrid_prism_results.csv')
 with open('results/slipgrid_prism_results.tex', 'w') as tf:
      tf.write(DF.to_latex())
+'''
+
+grid = SlipGrid(X=Xbase, Y=Ybase, B=0, seed=0, p_slip_min=0.1, p_slip_max=0.25, p_to_sink=0.1, threshold=0.5, verbose=verbose)
+grid.define_IMDP()
+V, policy, P_worst, optimal_actions = RVI(grid.rmdp, grid.reward, grid.nr_states, s_init=grid.s_init, gamma=1.0, iters=100, policy_direction='min', adversary_direction='max')
+derivatives, optimal_actions = compute_derivative(grid.rmdp, grid.reward, V, policy, P_worst, -1, s_init=grid.s_init, s_sink=grid.s_sink, gamma=1.0, maximize=False)
+
+assert False
 
 # Run the instances for each probability P
 for size in sizes:

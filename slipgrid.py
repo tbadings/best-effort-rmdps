@@ -19,6 +19,7 @@ class SlipGrid:
         # Define the number of states and choices based on X and Y
         self.nr_states = X * Y
         self.s_init = 0
+        self.s_sink = [X * Y - 1]
 
         # Randomly select O unique obstacles indexes (avoid choosing the initial and goal states)
         self.obstacles = np.random.choice(self.nr_states - 2, size=B, replace=False) + 1
