@@ -2,7 +2,7 @@ import numpy as np
 import cvxpy as cp
 import tqdm
 
-def RVI(rmdp, reward, nr_states, s_init=0, gamma=0.9, iters=100, policy_direction='min', adversary_direction='max', terminate_eps=1e-5):
+def RVI(rmdp, reward, nr_states, s_init=0, gamma=0.9, iters=1000, policy_direction='min', adversary_direction='max', terminate_eps=1e-5):
     """
     Robust Value Iteration algorithm for solving Robust Markov Decision Processes (RMDPs).
     
@@ -47,12 +47,6 @@ def RVI(rmdp, reward, nr_states, s_init=0, gamma=0.9, iters=100, policy_directio
     
     Notes
     -----
-    The algorithm implements a robust value iteration where:
-    1. For each state-action pair, the uncertainty set if assumed to be s-rectangular and a convex combination between two vertices.
-    2. The algorithm alternates between policy optimization (using current uncertainty
-       realization) and adversarial optimization (finding worst-case uncertainty).
-    3. Convergence is checked using the L∞ norm of value function differences.
-    §
     The uncertainty sets are parameterized by a single variable P[s] ∈ [0,1] such that
     the actual transition probability is P[s] * p_min + (1-P[s]) * p_max.
     
@@ -170,10 +164,12 @@ def compute_derivative(rmdp, reward, V, policy, P, vector, s_init, s_sink, gamma
         for s in s_sink:
             Pfull[s,s] = 1
 
-    print('Test, values from inverting:', np.linalg.inv(Pfull) @ Rfixed)
+    # Check if the same values can be reproduced by inverting the transition probability matrix
+    assert np.all(np.isclose(np.linalg.inv(Pfull) @ Rfixed, V))
 
     derivatives = {}
     optimal_actions = {}
+    policy = np.full(len(V), 'none', dtype=object)
 
     # Now, for every state, compute the derivative by replacing its row with cvxpy parameters
     for s,v in rmdp.items():
@@ -182,45 +178,6 @@ def compute_derivative(rmdp, reward, V, policy, P, vector, s_init, s_sink, gamma
         action_list = list(v.keys())
         derivatives[s] = {}
         optimal_actions[s] = []
-
-        '''
-        # Create decision variables
-        cp_V = cp.Variable(len(V))
-        constraints = [cp_V >= 0, cp_V <= 1000, cp_V[s_sink] == 0]
-
-        # Add constraints for all states but state s
-        mask = np.ones(len(V), dtype=bool)
-        mask[s] = False
-        mask[s_sink] = False  # Ensure sink state is not included in the constraints
-        constraints += [Pfull[mask] @ cp_V == Rfixed[mask]]
-
-        for a,w in v.items():
-            P_param = cp.Parameter()
-            P_param.value = P[s]  # Set the current value of P for this state
-
-            print(P[s])
-
-            # Add the extra constraint for the current action to complete the equation system
-            constraint_current_action = [cp_V[s] >= P_param]
-
-            # Combine all constraints
-            objective = cp.Maximize(cp.sum(cp_V)) if maximize else cp.Minimize(cp.sum(cp_V))
-            problem = cp.Problem(objective, constraint_current_action)
-            print('\nIs dgp?')
-            print(problem.is_dgp(dpp=True))
-
-            print(problem)
-
-            # Solve problem
-            problem.solve(gp=True, requires_grad=True)
-            print('Value:',cp_V[s].value)
-            
-            # Compute the derivative into a positive change in P_param
-            P_param.delta += vector
-            problem.derivative()
-
-            derivatives[s][a] = cp_V[s].value + cp_V[s].delta
-        '''
 
         for a,w in v.items():
             rhs = np.zeros(len(V))
@@ -236,12 +193,12 @@ def compute_derivative(rmdp, reward, V, policy, P, vector, s_init, s_sink, gamma
         else:
             opt_derivative = np.min(list(derivatives[s].values()))
 
-        print(opt_derivative)
-
         eps = 1e-4
         for a,w in v.items():
-            print(f'Action {a} derivative: {derivatives[s][a]}')
             if np.abs(derivatives[s][a] - opt_derivative) < eps:
                 optimal_actions[s] += [a]
 
-    return derivatives, optimal_actions
+        # Arbitrarily choose the first optimal action as the policy for this state
+        policy[s] = optimal_actions[s][0] if len(optimal_actions[s]) > 0 else 'none'
+
+    return derivatives, policy, optimal_actions

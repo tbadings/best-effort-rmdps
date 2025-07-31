@@ -2,14 +2,13 @@ import numpy as np
 from utils import xy_to_index, index_to_xy
 
 class SlipGrid:
-    def __init__(self, X=5, Y=5, B=10, seed=0, p_slip_min=0.1, p_slip_max=0.2, p_to_sink=0.1, threshold=0.5, verbose=False):
+    def __init__(self, X=5, Y=5, B=10, seed=0, p_slip_min=0.1, p_slip_max=0.2, threshold=0.5, verbose=False):
         self.X = X
         self.Y = Y
         self.B = B
         self.seed = seed
         self.p_slip_min = p_slip_min
         self.p_slip_max = p_slip_max
-        self.p_to_sink = p_to_sink
         self.threshold = threshold
         self.verbose = verbose
 
@@ -20,10 +19,13 @@ class SlipGrid:
         self.nr_states = X * Y
         self.s_init = 0
         self.s_sink = [X * Y - 1]
+        self.xy_init = (0, 0)
+        self.xy_goal = (X - 1, Y - 1)
 
         # Randomly select O unique obstacles indexes (avoid choosing the initial and goal states)
         self.obstacles = np.random.choice(self.nr_states - 2, size=B, replace=False) + 1
-        print(f' - Selected {len(self.obstacles)} obstacles: {self.obstacles}')
+        if self.verbose:
+            print(f' - Selected {len(self.obstacles)} obstacles: {self.obstacles}')
 
     def define_IMDP(self):
 
@@ -443,7 +445,7 @@ class SlipGrid:
             for a,w in v.items():
                 value = self.reward[s][a] + np.sum([self.imdp_pworst[s][j] * self.V[ss] for j,ss in enumerate(w.keys())])
 
-                if np.abs(value - self.V[s]) < 1e-4:
+                if np.abs(value - self.V[s]) < 1e-3:
                     if self.verbose:
                         print(f' - Value for action {a} in state {s} ({x},{y}) is {value} (optimal)')
                     optimal_actions[s] += [a]
