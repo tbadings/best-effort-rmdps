@@ -1,4 +1,3 @@
-import cdd
 import numpy as np
 
 def xy_to_index(x, y, X, Y):
@@ -25,21 +24,3 @@ def index_to_xy(index, Y):
     x = index // Y
 
     return x, y
-
-def compute_polytope_halfspaces(vertices):
-    '''
-    Compute the halfspace representation (H-rep) of a polytope.
-    '''
-
-    t = np.ones((vertices.shape[0], 1))  # first column is 1 for vertices
-    tV = np.hstack([t, vertices])
-    mat = cdd.matrix_from_array(tV, rep_type=cdd.RepType.GENERATOR) #, number_type="float")
-    P = cdd.polyhedron_from_matrix(mat)
-    bA = np.array(cdd.copy_inequalities(P).array)
-
-    print(bA)
-
-    # the polyhedron is given by b + A x >= 0 where bA = [b|A]
-    b, A = np.array(bA[:, 0]), -np.array(bA[:, 1:])
-
-    return A, b

@@ -13,6 +13,7 @@ from utils import xy_to_index, index_to_xy
 from slipgrid import SlipGrid
 from RVI import RVI, compute_derivative
 from copy import copy, deepcopy
+import argparse
 
 def plot_grid_layout(grid):
     """
@@ -143,7 +144,7 @@ def run_rvi_instance(grid):
 
     return rvi_fraction_minmax, rvi_fraction_minmin, rvi_fraction_derivative, rvi_time_minmax, rvi_time_minmin, rvi_time_derivative
 
-def run_prism_instance(grid):
+def run_prism_instance(grid, prism_location):
     '''
     Runs a PRISM instance on the given grid.
     '''
@@ -158,7 +159,7 @@ def run_prism_instance(grid):
 
     # Model checking with PRISM (minmax)
     time0 = time.time()
-    command = f"/Users/thobad/Documents/Tools/prism/prism/bin/prism {filename} -pf 'Rminmax=? [ F \"goal\" ];' -exportstrat 'prism/policy_minmax.txt' -exportvector 'prism/values_minmax.txt'"
+    command = f"{prism_location} {filename} -pf 'Rminmax=? [ F \"goal\" ];' -exportstrat 'prism/policy_minmax.txt' -exportvector 'prism/values_minmax.txt'"
     subprocess.Popen(command, shell=True).wait() 
 
     optimal_actions = grid.read_prism_output(values='prism/values_minmax.txt', policy='prism/policy_minmax.txt')
@@ -179,7 +180,7 @@ def run_prism_instance(grid):
 
     # Model checking with PRISM (minmin)
     time0 = time.time()
-    command = f"/Users/thobad/Documents/Tools/prism/prism/bin/prism {filename} -pf 'Rminmin=? [ F \"goal\" ];' -exportstrat 'prism/policy_minmin.txt' -exportvector 'prism/values_minmin.txt'"
+    command = f"{prism_location} {filename} -pf 'Rminmin=? [ F \"goal\" ];' -exportstrat 'prism/policy_minmin.txt' -exportvector 'prism/values_minmin.txt'"
     subprocess.Popen(command, shell=True).wait()
 
     grid_minmin.read_prism_output(values='prism/values_minmin.txt', policy='prism/policy_minmin.txt')
@@ -202,6 +203,12 @@ def run_prism_instance(grid):
 
 if __name__ == "__main__":
 
+    parser = argparse.ArgumentParser(prefix_chars='--')
+    parser.add_argument('--prism_location', type=str, default=".../prism/bin/prism",
+                        help="Location to the PRISM executable.")
+    
+    args = parser.parse_args()
+    
     PLOT = False
     if PLOT:
         grid = SlipGrid(X=10, Y=10, B=10, seed=0, p_slip_min=0.1, p_slip_max=0.25, threshold=0.5, verbose=False)
@@ -250,7 +257,7 @@ if __name__ == "__main__":
                 grid = SlipGrid(X=X, Y=Y, B=B, seed=seed, p_slip_min=0.1, p_slip_max=0.25, threshold=P, verbose=verbose)
 
                 grid.define_IMDP()
-                prism_be_minmax[i], prism_be_minmin[i], prism_time_minmax[i], prism_time_minmin[i] = run_prism_instance(grid)
+                prism_be_minmax[i], prism_be_minmin[i], prism_time_minmax[i], prism_time_minmin[i] = run_prism_instance(grid, args.prism_location)
 
             # Store the results for this probability P
             results[key]['prism-time'] = f'${np.round(np.mean(prism_time_minmax), 1)}$'
