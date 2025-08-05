@@ -220,7 +220,7 @@ if __name__ == "__main__":
     Bbase = 10     # Number of obstacles
     sizes = [1,2,3,5,10]
     Ps = [0.0, 0.5, 1.0]    # Probability to define the best-effort action first
-    num_seeds = 10
+    num_seeds = 2
     seeds = np.arange(num_seeds)    # Random seed for reproducibility
 
     ### PRISM instances ###
@@ -287,7 +287,7 @@ if __name__ == "__main__":
     Bbase = 10     # Number of obstacles
     sizes = [1,2,3]
     Ps = [0.0, 0.5, 1.0]    # Probability to define the best-effort action first
-    seeds = np.arange(10)    # Random seed for reproducibility
+    seeds = np.arange(2)    # Random seed for reproducibility
 
     ### Robust value iteration instances ###
     results = {}
