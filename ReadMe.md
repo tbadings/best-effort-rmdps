@@ -1,9 +1,10 @@
-This repository contains the code to reproduce the experiments presented in the AAAI 2026 submission with the title:
+This repository contains the code to reproduce the experiments presented in the paper with the title:
 
     "Best-Effort Policies for Robust Markov Decision Processes"
 
 ## Installation
 After downloading this folder onto your machine, please run the following steps to install the required dependencies.
+We have tested the code base Python version 3.12.
 
 ### 1. Install PRISM
 
