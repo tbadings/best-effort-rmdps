@@ -40,10 +40,10 @@ pip3 install -r requirements.txt
 ```
 
 ## Reproduce experimental results
-To reproduce the results presented in the paper, run the `runfile.py` file as follows:
+To reproduce the results presented in the paper, run the `run.py` file as follows:
 
 ```
-python runfile.py --prism_location '<path_to_prism_executable>'
+python run.py --prism_location '<path_to_prism_executable>'
 ```
 
 Replace the prism_location with the appropriate path on your machine. Typically, this path looks something like `/.../prism/bin/prism`, that is, the PRISM installation has a `bin` folder, and the executable is located within that folder.
